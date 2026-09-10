@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ядро — личный AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://api.fontshare.com/v2/css?f[]=switzer@400,500,600,700&f[]=general-sans@500,600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="app-extra.css" />
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" aria-label="Ядро logo">
+        <path d="M12 2 L20 7 V17 L12 22 L4 17 V7 Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M12 2 V12 M12 12 L20 7 M12 12 L4 7 M12 12 V22" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+      </svg>
+      <span>Ядро</span>
+      <span class="max-badge">MAX</span>
+    </div>
+
+    <button class="new-thread-btn" type="button" id="newThreadBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+      Новый диалог
+    </button>
+
+    <nav class="nav-group" aria-label="Основное">
+      <button class="nav-item active" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        Поиск
+      </button>
+      <button class="nav-item" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg>
+        Обзор
+      </button>
+      <button class="nav-item" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>
+        Библиотека
+      </button>
+      <button class="nav-item" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>
+        Проекты
+      </button>
+      <button class="nav-item" type="button" id="navComputerBtn" title="Автономный агент: выполняет многошаговые задачи и собирает итоговые файлы в архив">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 20h8M12 18v2"/></svg>
+        Компьютер
+      </button>
+    </nav>
+
+    <div class="sidebar-section-label">Недавние</div>
+    <div class="thread-list" id="threadList">
+      <div class="thread-empty" id="threadEmpty">Диалогов пока нет</div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="avatar" id="userAvatar">?</div>
+      <div class="who">
+        <strong id="userName">…</strong>
+        <span>Личный сервер · Ядро</span>
+      </div>
+      <button class="icon-btn" type="button" id="settingsBtn" aria-label="Настройки">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Переключить тему">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <button class="icon-btn" type="button" id="logoutBtn" aria-label="Выйти">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbarTitle"></div>
+      <div class="topbar-usage" id="topbarUsage" hidden></div>
+    </div>
+
+    <!-- EMPTY STATE -->
+    <section class="empty-state" id="emptyState">
+      <h1>Что вы хотите <em>узнать</em>?</h1>
+
+      <div class="composer-wrap">
+        <div class="composer">
+          <textarea rows="1" id="composerInput" placeholder="Спросите что угодно…"></textarea>
+          <div class="composer-row">
+            <div class="composer-left">
+              <button class="icon-btn" type="button" aria-label="Прикрепить файл">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12v6a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h9"/><path d="M14 3v6h6"/></svg>
+              </button>
+
+              <div style="position:relative">
+                <button class="mode-pill" type="button" id="modeBtn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>
+                  <span class="mode-label">Оркестратор</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="dropdown-menu" id="modeMenu">
+                  <button class="dropdown-item" type="button" data-mode="orchestrator">
+                    <span class="dot" style="background:var(--color-primary)"></span>
+                    <span><span class="label">Оркестратор</span><br><span class="desc">Сам выбирает модель под задачу</span></span>
+                  </button>
+                  <button class="dropdown-item" type="button" data-mode="fast">
+                    <span class="dot simple"></span>
+                    <span><span class="label">Быстрый</span><br><span class="desc desc-fast">Простые вопросы</span></span>
+                  </button>
+                  <button class="dropdown-item" type="button" data-mode="code">
+                    <span class="dot code"></span>
+                    <span><span class="label">Код</span><br><span class="desc desc-code">Программирование</span></span>
+                  </button>
+                  <button class="dropdown-item" type="button" data-mode="complex">
+                    <span class="dot complex"></span>
+                    <span><span class="label">Сложный</span><br><span class="desc desc-complex">Рассуждения</span></span>
+                  </button>
+                  <button class="dropdown-item" type="button" data-mode="image">
+                    <span class="dot image"></span>
+                    <span><span class="label">Изображение</span><br><span class="desc desc-image">Генерация картинок по описанию</span></span>
+                  </button>
+                  <button class="dropdown-item" type="button" data-mode="computer">
+                    <span class="dot computer"></span>
+                    <span><span class="label">Компьютер</span><br><span class="desc desc-computer">Автономный агент: пишет и забирает итоговые файлы</span></span>
+                  </button>
+                </div>
+              </div>
+
+              <button class="mode-pill" type="button" id="computerBtn" title="Включить реальный веб-поиск для ответа (через Polza.ai)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+                Веб-поиск
+              </button>
+
+              <button class="mode-pill" type="button" id="attachBtn" title="Приложить изображение, документ/таблицу/код или аудио/видео (для расшифровки)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.4 11.1 12.7 19.8a4.5 4.5 0 0 1-6.4-6.4l8-8a3 3 0 0 1 4.2 4.2l-7.7 7.7a1.5 1.5 0 0 1-2.1-2.1l6.6-6.6"/></svg>
+              </button>
+              <input type="file" id="attachInput" multiple hidden accept="image/*,audio/*,video/*,.pdf,.docx,.txt,.md,.markdown,.rtf,.odt,.xlsx,.pptx,.csv,.json,.yml,.yaml,.xml,.log,.py,.js,.mjs,.cjs,.ts,.tsx,.jsx,.sh,.bash,.ps1,.c,.cpp,.h,.hpp,.java,.go,.rs,.rb,.php,.sql,.html,.htm,.css,.ini,.conf,.toml,.mp3,.wav,.mp4,.m4a,.webm,.ogg" />
+            </div>
+            <div class="composer-right">
+              <button class="send-btn" type="button" id="sendBtn" aria-label="Отправить">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="attachment-chips" id="attachmentChips" hidden></div>
+        </div>
+
+        <div class="suggestions">
+          <button class="chip" type="button">Сравни цены моделей на Polza.ai</button>
+          <button class="chip" type="button">Почему падает скорость WireGuard?</button>
+          <button class="chip" type="button">Напиши PowerShell-скрипт бэкапа</button>
+          <button class="chip" type="button">Объясни разницу Docker и LXC</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHAT / ANSWER STATE -->
+    <section class="chat-view" id="chatView">
+      <div class="chat-inner" id="chatInner"></div>
+
+      <div class="followup-composer">
+        <div class="composer" style="max-width:760px;margin:0 auto">
+          <textarea rows="1" id="followupInput" placeholder="Задайте уточняющий вопрос…"></textarea>
+          <div class="composer-row">
+            <div class="composer-left">
+              <div style="position:relative">
+                <button class="mode-pill" type="button" id="modeBtnFollowup">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>
+                  <span class="mode-label">Оркестратор</span>
+                </button>
+              </div>
+              <button class="mode-pill" type="button" id="computerBtnFollowup" title="Включить реальный веб-поиск для ответа (через Polza.ai)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+                Веб-поиск
+              </button>
+              <button class="mode-pill" type="button" id="attachBtnFollowup" title="Приложить изображение, документ/таблицу/код или аудио/видео (для расшифровки)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.4 11.1 12.7 19.8a4.5 4.5 0 0 1-6.4-6.4l8-8a3 3 0 0 1 4.2 4.2l-7.7 7.7a1.5 1.5 0 0 1-2.1-2.1l6.6-6.6"/></svg>
+              </button>
+              <input type="file" id="attachInputFollowup" multiple hidden accept="image/*,audio/*,video/*,.pdf,.docx,.txt,.md,.markdown,.rtf,.odt,.xlsx,.pptx,.csv,.json,.yml,.yaml,.xml,.log,.py,.js,.mjs,.cjs,.ts,.tsx,.jsx,.sh,.bash,.ps1,.c,.cpp,.h,.hpp,.java,.go,.rs,.rb,.php,.sql,.html,.htm,.css,.ini,.conf,.toml,.mp3,.wav,.mp4,.m4a,.webm,.ogg" />
+            </div>
+            <button class="send-btn" type="button" id="followupSendBtn" aria-label="Отправить">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+            </button>
+          </div>
+          <div class="attachment-chips" id="attachmentChipsFollowup" hidden></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settingsOverlay" hidden>
+  <div class="modal settings-modal" role="dialog" aria-modal="true" aria-label="Настройки">
+    <div class="modal-header">
+      <h2>Настройки</h2>
+      <button class="icon-btn" type="button" id="settingsCloseBtn" aria-label="Закрыть">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body settings-body">
+      <nav class="settings-tabs" aria-label="Разделы настроек">
+        <button type="button" class="settings-tab active" data-tab="connections">Подключения</button>
+        <button type="button" class="settings-tab" data-tab="modes">Модели по режимам</button>
+        <button type="button" class="settings-tab" data-tab="account">Аккаунт</button>
+        <button type="button" class="settings-tab" data-tab="code">Выполнение кода</button>
+        <button type="button" class="settings-tab" data-tab="profile">Память</button>
+        <button type="button" class="settings-tab" data-tab="scheduler">Планировщик</button>
+      </nav>
+      <div class="settings-panel">
+
+        <!-- CONNECTIONS -->
+        <section class="settings-section active" data-section="connections">
+          <div class="settings-section-head">
+            <h3>Подключения</h3>
+            <button class="btn-primary-sm" type="button" id="addConnectionBtn">+ Добавить подключение</button>
+          </div>
+          <div class="connections-list" id="connectionsList"></div>
+
+          <div class="connection-form" id="connectionForm" hidden>
+            <h4 id="connectionFormTitle">Новое подключение</h4>
+            <label>Название<input type="text" id="connName" placeholder="Polza.ai" /></label>
+            <label>Base URL<input type="text" id="connBaseUrl" placeholder="https://polza.ai/api/v1" /></label>
+            <label>API Key<input type="password" id="connApiKey" placeholder="sk-…" /></label>
+            <label>Модель по умолчанию (необязательно)<input type="text" id="connDefaultModel" placeholder="gpt-4o-mini" /></label>
+            <div class="connection-form-actions">
+              <button type="button" class="btn-secondary-sm" id="connCancelBtn">Отмена</button>
+              <button type="button" class="btn-primary-sm" id="connSaveBtn">Сохранить</button>
+            </div>
+            <div class="settings-feedback" id="connFormFeedback" hidden></div>
+          </div>
+        </section>
+
+        <!-- MODE ASSIGNMENTS -->
+        <section class="settings-section" data-section="modes">
+          <h3>Модели по режимам</h3>
+          <p class="settings-hint">Сопоставьте каждый режим с конкретным подключением и моделью. Для «Оркестратора» классификатором служит модель из режима «Быстрый».</p>
+          <div class="mode-assignments" id="modeAssignments"></div>
+
+          <div id="computerPoolPanel" class="computer-pool-panel" hidden>
+            <h4>Модели режима «Компьютер»</h4>
+            <p class="settings-hint">Агент сам подбирает модель под каждую задачу/подзадачу по её возможностям (авто-разметка по имени модели). Можно поправить вручную — отмеченные возможности заменяют авто-разметку для этой модели.</p>
+            <div id="computerPoolList" class="computer-pool-list"></div>
+          </div>
+        </section>
+
+        <!-- ACCOUNT -->
+        <section class="settings-section" data-section="account">
+          <h3>Аккаунт</h3>
+          <div class="account-info" id="accountInfo"></div>
+          <h4 style="margin-top:var(--space-6)">Смена пароля</h4>
+          <form class="password-form" id="passwordForm">
+            <label>Текущий пароль<input type="password" id="currentPassword" required /></label>
+            <label>Новый пароль<input type="password" id="newPassword" required minlength="4" /></label>
+            <div class="password-form-actions">
+              <button type="submit" class="btn-primary-sm">Сменить пароль</button>
+            </div>
+            <div class="settings-feedback" id="passwordFeedback" hidden></div>
+          </form>
+        </section>
+
+        <!-- CODE EXECUTION -->
+        <section class="settings-section" data-section="code">
+          <h3>Выполнение кода</h3>
+          <p class="settings-hint">
+            Кнопка «Запустить» на блоках кода в чате выполняет код в изолированном контейнере
+            (Piston) и не имеет доступа к вашим файлам, сети сервера и остальной инфраструктуре.
+            Каждый запуск ограничен по времени, памяти и объёму вывода.
+          </p>
+          <div class="toggle-row">
+            <label class="switch">
+              <input type="checkbox" id="allowAutoCodeExecToggle" />
+              <span class="switch-track"><span class="switch-thumb"></span></span>
+            </label>
+            <div class="toggle-row-text">
+              <div class="toggle-row-title">Разрешить модели запускать код самостоятельно</div>
+              <div class="toggle-row-desc">
+                Включает автономный вызов инструмента run_code через function calling: модель сама
+                решает, нужно ли выполнить код для ответа (до 3 раундов на сообщение), без нажатия
+                кнопки «запустить». Действует в тех же изолированных условиях и лимитах, что и ручная кнопка.
+              </div>
+            </div>
+          </div>
+          <div class="settings-feedback" id="codeSettingsFeedback" hidden></div>
+        </section>
+
+        <!-- PROFILE / MEMORY -->
+        <section class="settings-section" data-section="profile">
+          <h3>Память</h3>
+          <p class="settings-hint">
+            Короткая заметка о вас, которую агент будет учитывать в любом диалоге — простая свободная
+            заметка, а не автоматическое запоминание. Например: «работаю с PowerShell и Keenetic,
+            предпочитаю краткие ответы».
+          </p>
+          <textarea id="profileNoteInput" class="profile-textarea" maxlength="4000" placeholder="Что агенту стоит знать о вас?"></textarea>
+          <div class="profile-actions">
+            <button type="button" class="btn-primary-sm" id="profileSaveBtn">Сохранить</button>
+          </div>
+          <div class="settings-feedback" id="profileFeedback" hidden></div>
+        </section>
+
+        <!-- SCHEDULER -->
+        <section class="settings-section" data-section="scheduler">
+          <div class="settings-section-head">
+            <h3>Планировщик</h3>
+            <button class="btn-primary-sm" type="button" id="addScheduledTaskBtn">+ Новая задача</button>
+          </div>
+          <p class="settings-hint">
+            Периодический запрос к выбранной модели через заданный интервал (в минутах, без cron-синтаксиса).
+            Результат появляется как новое сообщение в отдельном треде чата.
+          </p>
+          <div class="scheduled-tasks-list" id="scheduledTasksList"></div>
+
+          <div class="scheduled-task-form" id="scheduledTaskForm" hidden>
+            <h4>Новая задача</h4>
+            <label>Название<input type="text" id="taskTitle" placeholder="Например, утренний брифинг" /></label>
+            <label>Задача (промт)<textarea id="taskPrompt" rows="3" placeholder="Что должен сделать агент?"></textarea></label>
+            <label>Режим
+              <select id="taskMode"></select>
+            </label>
+            <label>Интервал (минут)<input type="number" id="taskInterval" min="5" step="1" value="60" /></label>
+            <div class="connection-form-actions">
+              <button type="button" class="btn-secondary-sm" id="taskCancelBtn">Отмена</button>
+              <button type="button" class="btn-primary-sm" id="taskSaveBtn">Создать</button>
+            </div>
+            <div class="settings-feedback" id="taskFormFeedback" hidden></div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/marked.min.js"></script>
+<script src="vendor/purify.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

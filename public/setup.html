@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ядро — первичная настройка</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://api.fontshare.com/v2/css?f[]=switzer@400,500,600,700&f[]=general-sans@500,600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="auth.css" />
+</head>
+<body>
+<div class="auth-screen">
+  <div class="auth-card">
+    <div class="brand" style="justify-content:center;margin-bottom:var(--space-2)">
+      <svg viewBox="0 0 24 24" fill="none" aria-label="Ядро logo">
+        <path d="M12 2 L20 7 V17 L12 22 L4 17 V7 Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M12 2 V12 M12 12 L20 7 M12 12 L4 7 M12 12 V22" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+      </svg>
+      <span>Ядро</span>
+    </div>
+    <h1>Создайте admin-аккаунт</h1>
+    <p class="auth-sub">Это первый запуск приложения. Пользователей пока нет — создайте главную учётную запись.</p>
+
+    <form id="setupForm" class="auth-form">
+      <label>
+        <span>Логин</span>
+        <input type="text" name="username" autocomplete="username" required minlength="2" placeholder="admin" />
+      </label>
+      <label>
+        <span>Пароль</span>
+        <input type="password" name="password" autocomplete="new-password" required minlength="4" placeholder="Минимум 4 символа" />
+      </label>
+      <label>
+        <span>Повторите пароль</span>
+        <input type="password" name="password2" autocomplete="new-password" required minlength="4" />
+      </label>
+      <div class="auth-error" id="setupError" hidden></div>
+      <button type="submit" class="auth-submit">Создать аккаунт</button>
+    </form>
+  </div>
+</div>
+<script src="auth.js" data-mode="setup"></script>
+</body>
+</html>

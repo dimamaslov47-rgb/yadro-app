@@ -1,0 +1,91 @@
+# Стек для Portainer: Stacks -> Add stack -> вставить этот файл -> Deploy.
+# Порт 4141 выбран, т.к. на сервере уже заняты 3000 (OpenWebUI), 8000 (Computer/cptr),
+# 9000 (Portainer), 8888 (SearXNG).
+
+services:
+  yadro:
+    # Если разворачиваете стек через "Repository" в Portainer (Git-репозиторий с этим
+    # проектом) — можно оставить "build: .", Portainer соберёт образ сам.
+    # Если вставляете compose как обычный текст (Web editor, без Git) — сначала
+    # соберите образ вручную на сервере: `docker build -t yadro-app:latest .`
+    # в каталоге проекта, затем закомментируйте "build: ." и раскомментируйте "image:".
+    build: .
+    image: yadro-app:latest
+    container_name: yadro
+    restart: unless-stopped
+    ports:
+      - "4141:4141"
+    environment:
+      - PORT=4141
+      - DATA_DIR=/app/data
+      # ВАЖНО: замените на собственное случайное значение перед продакшн-запуском,
+      # иначе сессии всех пользователей будут защищены общеизвестным ключом.
+      # Пример генерации: openssl rand -hex 32
+      - SESSION_SECRET=85b50d3867edb575f8cdd62739f66cf56ccb7dce2971b797dfb697f21fde6d2f
+      # Адрес исполнителя кода (кнопка «Запустить» и, в будущем, автономный запуск
+      # агентом). Имя хоста "piston" резолвится Docker DNS внутри сети code-exec-net.
+      - PISTON_URL=http://piston:2000
+    volumes:
+      - yadro_data:/app/data
+    networks:
+      # default — обычная сеть для доступа к интернету/прочим контейнерам стека;
+      # code-exec-net — отдельная internal-сеть только для общения с Piston.
+      - default
+      - code-exec-net
+
+  # Исполнитель кода для кнопки «Запустить» (см. CODE_EXECUTION_DESIGN.md).
+  # Двухфазная установка из-за internal-сети (см. комментарии ниже):
+  #   Фаза 1 (один раз, для установки языковых пакетов):
+  #     1. Временно закомментируйте строку "internal: true" у сети code-exec-net
+  #        ниже, чтобы у piston был доступ в интернет.
+  #     2. docker compose up -d piston
+  #     3. Установите нужные языки, например:
+  #        docker exec -it piston sh -c "cli ppman install python node bash"
+  #        (или другой набор языков — cli ppman list покажет доступные пакеты)
+  #     4. docker compose down piston (пакеты останутся в volume piston_data)
+  #   Фаза 2 (постоянный режим):
+  #     5. Верните "internal: true" в code-exec-net.
+  #     6. docker compose up -d piston — теперь без доступа в интернет/LAN,
+  #        только внутренний обмен с "yadro" через code-exec-net.
+  piston:
+    image: ghcr.io/engineer-man/piston
+    container_name: piston
+    restart: unless-stopped
+    # Никаких "ports:" — Piston не должен быть доступен снаружи хоста,
+    # только контейнеру "yadro" через внутреннюю сеть code-exec-net.
+    privileged: true
+    tmpfs:
+      - /piston/jobs:exec
+    volumes:
+      - piston_data:/piston/packages
+    networks:
+      - code-exec-net
+    # Лимиты на уровне контейнера Piston (в дополнение к его собственным
+    # per-run лимитам CPU/памяти/pids/таймаутам, см. CODE_EXECUTION_DESIGN.md §6,
+    # которые задаются через PISTON_* переменные ниже).
+    environment:
+      - PISTON_LOG_LEVEL=INFO
+      - PISTON_BIND=0.0.0.0:2000
+      - PISTON_RUN_TIMEOUT=5000
+      - PISTON_COMPILE_TIMEOUT=10000
+      - PISTON_RUN_MEMORY_LIMIT=268435456
+      - PISTON_RUN_CPU_TIME=5000
+      - PISTON_MAX_PROCESS_COUNT=32
+      - PISTON_OUTPUT_MAX_SIZE=65536
+      - PISTON_MAX_CONCURRENT_JOBS=2
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+
+volumes:
+  yadro_data:
+  piston_data:
+
+networks:
+  code-exec-net:
+    # internal: true — код в контейнере piston не имеет доступа в интернет
+    # или к остальной домашней сети, только к контейнеру "yadro" по имени.
+    # Закомментируйте на время Фазы 1 (установка языковых пакетов), см. выше.
+    internal: true

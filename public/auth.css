@@ -1,0 +1,69 @@
+/* ===== auth screens (login/setup) ===== */
+body { overflow: auto; }
+.auth-screen {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background: var(--color-bg);
+}
+.auth-card {
+  width: min(380px, 100%);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-8) var(--space-6);
+  display: flex;
+  flex-direction: column;
+}
+.auth-card .brand svg { width: 28px; height: 28px; color: var(--color-primary); }
+.auth-card .brand span { font-family: var(--font-display); font-weight: 600; font-size: var(--text-lg); }
+.auth-card h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-lg);
+  text-align: center;
+  margin-top: var(--space-2);
+}
+.auth-sub {
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  margin-top: var(--space-2);
+  margin-bottom: var(--space-6);
+}
+.auth-form { display: flex; flex-direction: column; gap: var(--space-4); }
+.auth-form label { display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--text-sm); font-weight: 600; }
+.auth-form input {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  background: var(--color-bg);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  transition: border-color var(--transition-interactive);
+}
+.auth-form input:focus-visible { border-color: var(--color-primary); outline: none; }
+.auth-submit {
+  margin-top: var(--space-2);
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  transition: background var(--transition-interactive);
+}
+.auth-submit:hover { background: var(--color-primary-hover); }
+.auth-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+.auth-error {
+  background: #fbeaea;
+  color: #a13c3c;
+  border: 1px solid #e6c5c5;
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+}
+[data-theme="dark"] .auth-error { background: #3a2222; color: #e08787; border-color: #5a3232; }
