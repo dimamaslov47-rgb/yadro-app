@@ -729,7 +729,7 @@
 
   // ===================== ATTACHMENTS (изображения + документы + аудио/видео) =====================
   // Согласован с белым списком server/attachments.js PLAIN_TEXT_EXT + бинарные xlsx/pptx/rtf/odt (легаси .doc/.xls не поддерживаются).
-  const DOC_EXT_RE = /\.(pdf|docx|txt|md|markdown|rtf|odt|xlsx|pptx|csv|json|yml|yaml|xml|log|py|js|mjs|cjs|ts|tsx|jsx|sh|bash|ps1|c|cpp|h|hpp|java|go|rs|rb|php|sql|html|htm|css|ini|conf|toml)$/i;
+  const DOC_EXT_RE = /\.(pdf|docx|txt|md|markdown|rtf|odt|xlsx|pptx|csv|json|yml|yaml|xml|log|py|js|mjs|cjs|ts|tsx|jsx|sh|bash|ps1|c|cpp|h|hpp|java|go|rs|rb|php|sql|html|htm|css|ini|conf|toml|zip)$/i;
   // Аудио/видео идёт не на /api/uploads/extract, а на /api/uploads/transcribe (распознавание речи) —
   // результат возвращается в той же форме { filename, text, truncated }, чтобы дальше вести себя как обычное документ-вложение.
   const MEDIA_EXT_RE = /\.(mp3|wav|mp4|m4a|webm|ogg)$/i;

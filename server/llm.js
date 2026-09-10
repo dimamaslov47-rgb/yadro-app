@@ -238,7 +238,14 @@ async function chatCompletionWithTools(connection, model, messages, tools) {
 // Возвращает готовый массив messages (с добавленными раундами tool-calls), который дальше
 // можно передать в обычный streamChatCompletion БЕЗ параметра tools — финальный ответ всё
 // равно стримится пользователю как раньше.
-async function runToolLoop(connection, model, messages, tools, executor, { maxRounds = 3, onToolEvent } = {}) {
+// appendFinalText: когда требуется знать реальный прямой текстовый ответ модели (когда она не вызвала
+// инструмент), возвращается в самих messages (используется подзадачами режима «Компьютер»,
+// где нет отдельного последующего стрима, который бы сгенерировал реальный ответ заново). Другие
+// вызовы (сборка итогового ответа и обычный режим с run_code) намеренно оставляют messages оканчиваться
+// на последней пользовательской реплике (если инструмент не вызывался), так как им всё равно предстоит
+// отдельным вызовом streamChatCompletion сгенерировать финальный ответ пользователю — менять это здесь
+// сломало бы этот вызов.
+async function runToolLoop(connection, model, messages, tools, executor, { maxRounds = 3, onToolEvent, appendFinalText = false } = {}) {
   let current = messages.slice();
   for (let round = 0; round < maxRounds; round++) {
     let result;
@@ -247,7 +254,14 @@ async function runToolLoop(connection, model, messages, tools, executor, { maxRo
     } catch (e) {
       break; // провайдер не поддержал tools/ошибся — просто уходим к обычному финальному стримингу
     }
-    if (!result.toolCalls || !result.toolCalls.length) break;
+    if (!result.toolCalls || !result.toolCalls.length) {
+      if (appendFinalText) {
+        // Специально для вызовов, где это единственное доступное место, где можно увидеть реальный
+        // ответ модели без вызова инструмента — добавляем его в историю.
+        current.push({ role: 'assistant', content: result.content || '' });
+      }
+      break;
+    }
     current.push({ role: 'assistant', content: result.content || null, tool_calls: result.toolCalls });
     for (const call of result.toolCalls) {
       const name = call.function && call.function.name;

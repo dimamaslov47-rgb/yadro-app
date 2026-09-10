@@ -104,10 +104,17 @@ async function planTask(connection, plannerModel, userText, pool, hasImages, onE
     `отдельные подзадачи (не больше ${MAX_SUBTASKS}) и подбери для каждой наиболее подходящую по возможностям ` +
     'модель ИЗ ПРИВЕДЁННОГО СПИСКА (указывай точный id модели). Если в задаче есть изображение — используй ' +
     'модель с тегом vision для подзадачи, которая его анализирует.\n\n' +
+    'Если пользователь просит СКАЧИВАЕМЫЙ файл — это не только офисный документ/таблица/презентация, но и ' +
+    'скрипт, код, конфиг или любой текстовый файл, а также если явно упомянуты слова «скачать», «файл», «архив», ' +
+    '«zip» — обязательно ставь "needsDocumentOutput": true (иначе финальный ответ будет собран без доступа к ' +
+    'инструментам создания файлов и скачиваемый файл не появится). В инструкции соответствующей подзадачи прямо ' +
+    'напиши, что результат нужно сохранить файлом через write_file (для скриптов/кода/текста) или create_document ' +
+    '(для настоящих pdf/docx/xlsx/pptx/csv/rtf/odt), а не просто написать текстом в ответе.\n\n' +
     'Ответь СТРОГО валидным JSON без пояснений и без markdown-разметки, по схеме:\n' +
     '{"subtasks": [{"id": "s1", "title": "короткое название", "capability": "reasoning|code|vision|audio|fast|general", ' +
     '"model": "точный id модели из списка", "instructions": "подробная инструкция для модели, что сделать"}], ' +
-    '"needsDocumentOutput": true|false, "outputFormat": "pdf|docx|xlsx|pptx|csv|rtf|odt" или null, ' +
+    '"needsDocumentOutput": true|false, "outputFormat": "pdf|docx|xlsx|pptx|csv|rtf|odt|text" или null ("text" — ' +
+    'скрипт/код/произвольный текстовый файл через write_file, а не через create_document), ' +
     '"outputFilename": "имя файла с расширением" или null}';
 
   const userContent =
@@ -167,6 +174,16 @@ function CAPABILITY_OR_GENERAL(c) {
   return known.includes(c) ? c : 'general';
 }
 
+// Находит текст последнего ассистентского сообщения в истории — используется для верификации,
+// чтобы сравнивать с реальным текстом ответа, а не с его пересказом-резюме.
+function lastAssistantText(messages) {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m && m.role === 'assistant' && typeof m.content === 'string' && m.content.trim()) return m.content;
+  }
+  return '';
+}
+
 async function runSubtask(connection, subtask, baseMessages, originalLastContent, tools, executeToolCall, onEvent) {
   onEvent('subtask_start', { id: subtask.id, title: subtask.title, model: subtask.model, capability: subtask.capability });
   const includeImages = subtask.capability === 'vision';
@@ -182,9 +199,14 @@ async function runSubtask(connection, subtask, baseMessages, originalLastContent
       executeToolCall,
       {
         maxRounds: 4,
+        appendFinalText: true,
         onToolEvent: (evt) => onEvent('tool_event', { ...evt, subtaskId: subtask.id }),
       },
     );
+    // Полный (несокращённый) ответ подзадачи — сохраняем отдельно от краткого резюме, так как резюме
+    // удобно для сборки нескольких подзадач в один ответ, но теряет конкретные детали (например,
+    // сам текст кода) и не годится для проверки результата.
+    const rawText = lastAssistantText(afterTools);
     // Короткое резюме подзадачи для последующей сборки — не стримим пользователю напрямую.
     const summary = await chatCompletionOnce(
       connection,
@@ -192,11 +214,18 @@ async function runSubtask(connection, subtask, baseMessages, originalLastContent
       afterTools.concat([{ role: 'user', content: 'Кратко (не более 6-8 предложений) резюмируй результат выполнения этой подзадачи для дальнейшей сборки итогового ответа.' }]),
       { maxTokens: SUBTASK_SUMMARY_MAX_TOKENS },
     );
-    const result = { id: subtask.id, title: subtask.title, model: subtask.model, ok: true, summary: summary || '(пустой ответ модели)' };
+    const result = {
+      id: subtask.id,
+      title: subtask.title,
+      model: subtask.model,
+      ok: true,
+      summary: summary || '(пустой ответ модели)',
+      rawText: rawText || summary || '',
+    };
     onEvent('subtask_done', result);
     return result;
   } catch (e) {
-    const result = { id: subtask.id, title: subtask.title, model: subtask.model, ok: false, error: e.message || String(e) };
+    const result = { id: subtask.id, title: subtask.title, model: subtask.model, ok: false, error: e.message || String(e), rawText: '' };
     onEvent('subtask_done', result);
     return result;
   }
@@ -204,15 +233,22 @@ async function runSubtask(connection, subtask, baseMessages, originalLastContent
 
 async function assembleFinal(connection, assemblyModel, originalUserText, subtaskResults, plan, tools, executeToolCall, onEvent, correctionNote) {
   onEvent('assembly_start', { model: assemblyModel });
+  // Передаём в сборку полный ответ подзадачи (rawText), а не только краткое резюме — иначе, если
+  // нужно вложить настоящий код/содержимое в файл (write_file/create_document), у сборочной модели
+  // не будет реального текста и она будет вынуждена придумывать содержимое заново по пересказу.
   const resultsText = subtaskResults
-    .map((r) => (r.ok ? `[${r.title} — модель ${r.model}]\n${r.summary}` : `[${r.title} — модель ${r.model}] ОШИБКА: ${r.error}`))
+    .map((r) => (r.ok ? `[${r.title} — модель ${r.model}]\n${(r.rawText || r.summary || '').slice(0, 6000)}` : `[${r.title} — модель ${r.model}] ОШИБКА: ${r.error}`))
     .join('\n\n');
 
   let systemPrompt =
     'Ты собираешь единый итоговый ответ пользователю на основе результатов подзадач, выполненных разными ' +
     'моделями агента «Компьютер». Сформулируй связный, понятный ответ на русском языке. Если по задаче нужно ' +
-    'подготовить итоговый файл (документ/таблицу/презентацию) и он ещё не был создан ни в одной из подзадач — ' +
-    'вызови инструмент create_document с подходящим форматом и содержимым, собранным из результатов подзадач.';
+    'подготовить итоговый файл, который пользователь должен скачать, и он ещё не был создан ни в одной из ' +
+    'подзадач — выбери правильный инструмент: create_document для настоящих офисных форматов (pdf, docx, xlsx, ' +
+    'pptx, csv, rtf, odt); write_file для скрипта, кода, конфига или любого простого текстового файла (например ' +
+    '.ps1, .py, .txt, .md, .json) — НЕ пытайся уложить такой файл в create_document, если он не подходит ни под ' +
+    'один из его форматов. Файлы, сохранённые любым из этих инструментов, автоматически собираются в один ' +
+    'скачиваемый zip-архив и предлагаются пользователю — отдельно упаковывать в zip не нужно.';
   if (correctionNote) {
     systemPrompt += `\n\nВАЖНО — при предыдущей проверке найдены проблемы, обязательно исправь их: ${correctionNote}`;
   }
@@ -289,18 +325,26 @@ async function orchestrateComputerTask({ connection, pool, chatMessages, tools, 
     finalModel = subtaskResults[0].model;
     finalMessages = chatMessages.slice(0, -1).concat([
       { role: 'user', content: lastContent },
-      { role: 'assistant', content: subtaskResults[0].summary },
-      { role: 'user', content: 'Оформи это как окончательный ответ пользователю на русском языке — разверни при необходимости, сохранив суть.' },
+      // Используется полный ответ подзадачи (rawText), а не краткое резюме — иначе следующий шаг
+      // «оформи как финальный ответ» вынужден восстанавливать содержимое (например, сам текст кода)
+      // через пересочинение из краткого пересказа, что теряет точность.
+      { role: 'assistant', content: subtaskResults[0].rawText || subtaskResults[0].summary },
+      { role: 'user', content: 'Оформи это как окончательный ответ пользователю на русском языке, сохранив всё содержимое без сокращения (включая любой код целиком) — можно только улучшить изложение, не пересказывая вкратке.' },
     ]);
   } else {
     finalModel = pickPlannerModel(pool, fallbackModel);
     finalMessages = await assembleFinal(connection, finalModel, userText, subtaskResults, plan, tools, executeToolCall, onEvent, null);
   }
 
-  // Черновой текст для смысловой проверки — последний ассистентский текстовый фрагмент, если есть,
-  // иначе — сводка по подзадачам (для single-success веток текст ответа появится только после финального
-  // стрима, поэтому здесь проверяем по резюме подзадач/сборки, что доступно на этом шаге).
-  const draftText = subtaskResults.map((r) => (r.ok ? r.summary : `Ошибка: ${r.error}`)).join('\n\n');
+  // Черновой текст для смысловой проверки: для собранного ответа (assembleFinal) в finalMessages уже есть
+  // реальный текст финального ответа — используем именно его, а не пересказ через summary. Для ветки
+  // «одна успешная подзадача без сборки» реальный текст финального ответа появится только после отдельного
+  // стрима в server.js, поэтому берём полный (несокращённый) ответ подзадачи (rawText) — это ближе
+  // к тому, что увидит пользователь, чем 6-8-предложение-пересказ резюме (тот, из-за которого
+  // верификация раньше ложно решала, что черновик не содержит код, тогда как код в нём был).
+  const draftText = singleSuccessOnly
+    ? (subtaskResults[0].rawText || subtaskResults[0].summary)
+    : (lastAssistantText(finalMessages) || subtaskResults.map((r) => (r.ok ? r.summary : `Ошибка: ${r.error}`)).join('\n\n'));
   const filesNow = typeof listTaskFilesFn === 'function' ? listTaskFilesFn() : [];
   const reviewerModel = pickPlannerModel(pool, fallbackModel);
   let verification = await verifyResult(connection, reviewerModel, userText, draftText, filesNow);
@@ -312,7 +356,9 @@ async function orchestrateComputerTask({ connection, pool, chatMessages, tools, 
     finalModel = pickPlannerModel(pool, fallbackModel);
     finalMessages = await assembleFinal(connection, finalModel, userText, subtaskResults, plan, tools, executeToolCall, onEvent, verification.issues);
     const filesAfter = typeof listTaskFilesFn === 'function' ? listTaskFilesFn() : [];
-    const draftAfter = 'Исправленная версия с учётом замечаний: ' + verification.issues;
+    // Как и выше — проверяем реальный пересобранный текст из finalMessages, а не заглушку-плейсхолдер,
+    // которая никак не отражает реально исправленный ответ.
+    const draftAfter = lastAssistantText(finalMessages) || ('исходный черновик с замечаниями: ' + verification.issues);
     const secondCheck = await verifyResult(connection, reviewerModel, userText, draftAfter, filesAfter);
     onEvent('verify', { ok: secondCheck.ok, issues: secondCheck.issues, repaired: true });
     verification = secondCheck.ok ? secondCheck : { ok: secondCheck.ok, issues: verification.issues };

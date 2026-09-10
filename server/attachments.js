@@ -162,7 +162,13 @@ async function extractXlsx(buffer) {
   return parts.join('\n\n');
 }
 
-async function extractText(buffer, mimetype, originalName) {
+// Расширения, для которых есть текстокстрактор выше — используется внутри .zip, чтобы различать
+// читаемые вложения от бинарных (изображения, старые .doc/.xls и т.п.) без попытки их распаковать.
+const EXTRACTABLE_EXT = new Set([
+  '.pdf', '.docx', '.rtf', '.odt', '.pptx', '.xlsx', ...PLAIN_TEXT_EXT,
+]);
+
+async function extractRawText(buffer, mimetype, originalName) {
   const name = (originalName || '').toLowerCase();
   const ext = extOf(name);
   let text = '';
@@ -196,12 +202,70 @@ async function extractText(buffer, mimetype, originalName) {
     // Старый бинарный формат Excel — exceljs его не читает; явно и понятно сообщаем об ограничении,
     // а не тихо возвращаем мусор из бинарных байт.
     throw new Error('Старый формат .xls (не .xlsx) не поддерживается — пересохраните файл как .xlsx и приложите снова');
+  } else if (ext === '.zip') {
+    text = await extractZip(buffer);
   } else if ((mimetype || '').startsWith('text/') || PLAIN_TEXT_EXT.has(ext)) {
     text = buffer.toString('utf8');
   } else {
-    throw new Error('Формат файла не поддерживается для чтения (документы, таблицы, презентации, markdown/json/код — см. список поддерживаемых расширений)');
+    throw new Error('Формат файла не поддерживается для чтения (документы, таблицы, презентации, markdown/json/код, .zip-архивы — см. список поддерживаемых расширений)');
   }
-  text = text.trim();
+  return text;
+}
+
+// ---------- ZIP-архивы ----------
+// Защита от zip-бойты и огромных архивов: разбираем не больше ZIP_MAX_ENTRIES файлов и не больше
+// MAX_EXTRACTED_CHARS суммарно на весь архив (сам загружаемый .zip уже ограничен multer'ом в 15 Мб). Вложенные
+// zip внутри zip не раскрываем — только указываем их размер в сводном списке, чтобы избежать zip-бомб и
+// неограниченной рекурсии.
+const ZIP_MAX_ENTRIES = 30;
+
+async function extractZip(buffer) {
+  let zip;
+  try {
+    zip = new AdmZip(buffer);
+  } catch (e) {
+    throw new Error('Не удалось распаковать .zip — файл повреждён или не является zip-архивом');
+  }
+  const entries = zip.getEntries().filter((e) => !e.isDirectory);
+  if (!entries.length) throw new Error('Zip-архив пуст — внутри нет файлов');
+
+  const parts = [`[Архив: ${entries.length} файл(ов)${entries.length > ZIP_MAX_ENTRIES ? `, показаны первые ${ZIP_MAX_ENTRIES}` : ''}]`];
+  let budget = MAX_EXTRACTED_CHARS; // общий бюджет символов на весь архив, делится между файлами по очереди
+  for (const entry of entries.slice(0, ZIP_MAX_ENTRIES)) {
+    const entryExt = extOf(entry.entryName.toLowerCase());
+    const sizeKb = Math.round((entry.header.size || 0) / 1024);
+    if (budget <= 0) {
+      parts.push(`— «${entry.entryName}» (${sizeKb} КБ): пропущено, исчерпан лимит объёма вложения`);
+      continue;
+    }
+    if (entryExt === '.zip') {
+      parts.push(`— «${entry.entryName}» (${sizeKb} КБ): вложенный zip-архив, содержимое не разворачивается`);
+      continue;
+    }
+    if (!EXTRACTABLE_EXT.has(entryExt)) {
+      parts.push(`— «${entry.entryName}» (${sizeKb} КБ): формат не поддерживается для чтения (файл внутри архива, но не текстовый документ/таблица/код)`);
+      continue;
+    }
+    try {
+      const entryBuffer = entry.getData();
+      let entryText = (await extractRawText(entryBuffer, '', entry.entryName)).trim();
+      if (!entryText) {
+        parts.push(`— «${entry.entryName}» (${sizeKb} КБ): файл пустой или без текстового содержимого`);
+        continue;
+      }
+      if (entryText.length > budget) entryText = entryText.slice(0, budget) + '…(обрезано)';
+      budget -= entryText.length;
+      parts.push(`— «${entry.entryName}» (${sizeKb} КБ):
+${entryText}`);
+    } catch (e) {
+      parts.push(`— «${entry.entryName}» (${sizeKb} КБ): ошибка чтения — ${e.message}`);
+    }
+  }
+  return parts.join('\n\n');
+}
+
+async function extractText(buffer, mimetype, originalName) {
+  const text = (await extractRawText(buffer, mimetype, originalName)).trim();
   if (!text) throw new Error('Не удалось извлечь текст из файла (возможно, документ пустой или это сканы без текстового слоя)');
   const truncated = text.length > MAX_EXTRACTED_CHARS;
   return { text: text.slice(0, MAX_EXTRACTED_CHARS), truncated };
